@@ -23,6 +23,10 @@ export default function GestureRecognizer() {
   const [lastSpokenText, setLastSpokenText] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Feature flag: keep template code present but disabled in the UI/logic when false
+  // Set to `true` to re-enable template/phrase recognition in the frontend.
+  const USE_TEMPLATE = false;
+
   // Initialize webcam
   const startWebcam = async () => {
     try {
@@ -80,17 +84,25 @@ export default function GestureRecognizer() {
 
       if (response.ok) {
         const result: PredictionResult = await response.json();
-        setPrediction(result);
 
-        // Speak text if detected with high confidence (works for both letters and phrases)
-        if (
-          result.detected &&
-          result.text &&
-          result.confidence > 0.8 &&
-          result.text !== lastSpokenText
-        ) {
-          speakText(result.text);
-          setLastSpokenText(result.text);
+        // If template/phrase matching is disabled in the frontend, ignore phrase results
+        // Keep the template code present in the file, but make it non-functional here.
+        if (!USE_TEMPLATE && result.type === 'phrase') {
+          // do not surface phrase/template matches to the UI for now
+          setPrediction({ detected: false, text: null, confidence: 0, type: 'none' });
+        } else {
+          setPrediction(result);
+
+          // Speak text if detected with high confidence (works for both letters and phrases)
+          if (
+            result.detected &&
+            result.text &&
+            result.confidence > 0.8 &&
+            result.text !== lastSpokenText
+          ) {
+            speakText(result.text);
+            setLastSpokenText(result.text);
+          }
         }
       }
     } catch (error) {
@@ -159,6 +171,17 @@ export default function GestureRecognizer() {
             <span className="ml-2 inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
               Recognizes: A-Z
             </span>
+
+            {/* Template/phrase matching status (kept in file but can be disabled) */}
+            {!USE_TEMPLATE ? (
+              <span className="ml-2 inline-block bg-red-100 text-red-800 px-3 py-1 rounded-full">
+                Template: Disabled
+              </span>
+            ) : (
+              <span className="ml-2 inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                Template: Enabled
+              </span>
+            )}
           </div>
         </div>
 

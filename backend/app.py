@@ -26,6 +26,8 @@ labels = None
 mp_hands = None
 template_matcher = None
 prediction_buffer = deque(maxlen=10)
+# Feature flag: keep template matching code available but disable at runtime when False
+USE_TEMPLATE = False
 
 def load_model_and_scaler():
     """Load the trained model and scaler for ASL alphabet recognition."""
@@ -66,6 +68,11 @@ def initialize_template_matcher():
     """Initialize template matcher for phrase recognition."""
     global template_matcher
     
+    if not USE_TEMPLATE:
+        print('[INFO] Template matching disabled by server flag (USE_TEMPLATE=False)')
+        template_matcher = None
+        return
+
     try:
         template_matcher = TemplateMatcher(
             templates_dir=str(Path(__file__).parent / 'templates'),
