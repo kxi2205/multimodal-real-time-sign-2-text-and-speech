@@ -1,0 +1,4 @@
+opencv-python
+deepface
+mtcnn
+tf-keras
