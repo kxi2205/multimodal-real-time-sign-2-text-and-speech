@@ -7,6 +7,7 @@ interface PredictionResult {
   text: string | null;  // Unified: either letter or phrase
   confidence: number;
   type?: 'letter' | 'phrase' | 'none' | 'unknown';
+  emotion?: string | null;
 }
 
 export default function GestureRecognizer() {
@@ -18,6 +19,7 @@ export default function GestureRecognizer() {
     text: null,
     confidence: 0,
     type: 'none',
+    emotion: null,
   });
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastSpokenText, setLastSpokenText] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export default function GestureRecognizer() {
         // Keep the template code present in the file, but make it non-functional here.
         if (!USE_TEMPLATE && result.type === 'phrase') {
           // do not surface phrase/template matches to the UI for now
-          setPrediction({ detected: false, text: null, confidence: 0, type: 'none' });
+          setPrediction({ detected: false, text: null, confidence: 0, type: 'none', emotion: result.emotion });
         } else {
           setPrediction(result);
 
@@ -170,6 +172,9 @@ export default function GestureRecognizer() {
             </span>
             <span className="ml-2 inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
               Recognizes: A-Z
+            </span>
+            <span className="ml-2 inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
+              😊 Emotion Recognition
             </span>
 
             {/* Template/phrase matching status (kept in file but can be disabled) */}
@@ -254,6 +259,27 @@ export default function GestureRecognizer() {
                       {(prediction.confidence * 100).toFixed(0)}% confident
                     </span>
                   </div>
+                  
+                  {/* Emotion Display */}
+                  {prediction.emotion && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-sm text-gray-500 mb-2">Detected Emotion</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-3xl">
+                          {prediction.emotion === 'happy' && '😊'}
+                          {prediction.emotion === 'sad' && '😢'}
+                          {prediction.emotion === 'angry' && '😠'}
+                          {prediction.emotion === 'surprise' && '😲'}
+                          {prediction.emotion === 'fear' && '😨'}
+                          {prediction.emotion === 'disgust' && '🤢'}
+                          {prediction.emotion === 'neutral' && '😐'}
+                        </span>
+                        <span className="text-lg font-semibold text-gray-700 capitalize">
+                          {prediction.emotion}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -263,6 +289,27 @@ export default function GestureRecognizer() {
                       ? 'Show a hand sign...'
                       : 'Start camera to begin'}
                   </p>
+                  
+                  {/* Show emotion even when no hand is detected */}
+                  {isStreaming && prediction.emotion && (
+                    <div className="mt-6 pt-6 border-t border-gray-200 inline-block">
+                      <p className="text-sm text-gray-500 mb-2">Detected Emotion</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-4xl">
+                          {prediction.emotion === 'happy' && '😊'}
+                          {prediction.emotion === 'sad' && '😢'}
+                          {prediction.emotion === 'angry' && '😠'}
+                          {prediction.emotion === 'surprise' && '😲'}
+                          {prediction.emotion === 'fear' && '😨'}
+                          {prediction.emotion === 'disgust' && '🤢'}
+                          {prediction.emotion === 'neutral' && '😐'}
+                        </span>
+                        <span className="text-xl font-semibold text-gray-700 capitalize">
+                          {prediction.emotion}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

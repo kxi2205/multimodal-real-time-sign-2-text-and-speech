@@ -14,7 +14,9 @@ import mediapipe as mp
 import base64
 from collections import deque
 import os
+import sys
 from template_matcher import TemplateMatcher
+from emotion_recognizer import EmotionRecognizer
 
 app = Flask(__name__)
 CORS(app)
@@ -25,6 +27,7 @@ scaler = None
 labels = None
 mp_hands = None
 template_matcher = None
+emotion_recognizer = None
 prediction_buffer = deque(maxlen=10)
 # Feature flag: keep template matching code available but disable at runtime when False
 USE_TEMPLATE = False
@@ -86,16 +89,30 @@ def initialize_template_matcher():
         print(f"[WARNING] Could not initialize template matcher: {e}")
         template_matcher = None
 
+def initialize_emotion_recognizer():
+    """Initialize emotion recognizer using DeepFace."""
+    global emotion_recognizer
+    
+    try:
+        emotion_recognizer = EmotionRecognizer(backend="opencv")
+        print("[OK] Emotion recognizer initialized")
+    except Exception as e:
+        print(f"[WARNING] Could not initialize emotion recognizer: {e}")
+        emotion_recognizer = None
+
 # Initialize on startup
 try:
     load_model_and_scaler()
     initialize_mediapipe()
     initialize_template_matcher()
+    initialize_emotion_recognizer()
     print("\n[SUCCESS] ASL Recognition Backend Ready!")
     print("[INFO] Alphabet Model Accuracy: 96.64%")
     print("[INFO] Recognizes: A-Z letters + phrases/words")
     if template_matcher:
         print(f"[INFO] Available phrases: {', '.join(template_matcher.get_template_names())}")
+    if emotion_recognizer:
+        print("[INFO] Emotion recognition: Enabled")
     print()
 except Exception as e:
     print(f"[ERROR] Error during initialization: {e}")
@@ -109,16 +126,17 @@ def health_check():
         'scaler_loaded': scaler is not None,
         'mediapipe_initialized': mp_hands is not None,
         'template_matcher_loaded': template_matcher is not None,
-        'template_count': template_matcher.get_template_count() if template_matcher else 0
+        'template_count': template_matcher.get_template_count() if template_matcher else 0,
+        'emotion_recognizer_loaded': emotion_recognizer is not None
     })
 
 @app.route('/predict', methods=['POST'])
 def predict_gesture():
     """
-    Predict ASL gesture from base64 encoded image.
+    Predict ASL gesture and emotion from base64 encoded image.
     Intelligently switches between alphabet and phrase recognition.
     Expected input: {"image": "base64_encoded_image_string"}
-    Returns: {"text": "A" or "hello", "confidence": 0.95, "detected": true, "type": "letter" or "phrase"}
+    Returns: {"text": "A" or "hello", "confidence": 0.95, "detected": true, "type": "letter" or "phrase", "emotion": "happy"}
     """
     try:
         data = request.get_json()
@@ -137,6 +155,15 @@ def predict_gesture():
         
         if frame is None:
             return jsonify({'error': 'Invalid image data'}), 400
+        
+        # Detect emotion (runs independently of hand detection)
+        emotion = None
+        if emotion_recognizer:
+            try:
+                emotion = emotion_recognizer.predict_emotion(frame)
+            except Exception as e:
+                print(f"⚠ Emotion detection error: {e}")
+                emotion = None
         
         # Convert to RGB for MediaPipe
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -176,7 +203,8 @@ def predict_gesture():
                                     'text': phrase_result['phrase'],
                                     'confidence': phrase_result['confidence'],
                                     'type': 'phrase',
-                                    'distance': phrase_result['distance']
+                                    'distance': phrase_result['distance'],
+                                    'emotion': emotion
                                 })
                         except Exception as e:
                             print(f"⚠ Template matching error: {e}")
@@ -215,7 +243,8 @@ def predict_gesture():
                         'text': letter,
                         'confidence': float(avg_confidence),
                         'type': 'letter',
-                        'raw_confidence': confidence
+                        'raw_confidence': confidence,
+                        'emotion': emotion
                     })
                 
                 # For TWO HANDS: Try template matcher ONLY (no alphabet)
@@ -230,7 +259,8 @@ def predict_gesture():
                                     'text': phrase_result['phrase'],
                                     'confidence': phrase_result['confidence'],
                                     'type': 'phrase',
-                                    'distance': phrase_result['distance']
+                                    'distance': phrase_result['distance'],
+                                    'emotion': emotion
                                 })
                         except Exception as e:
                             print(f"⚠ Template matching error: {e}")
@@ -241,7 +271,8 @@ def predict_gesture():
                         'text': None,
                         'confidence': 0.0,
                         'type': 'unknown',
-                        'message': 'Two hands detected but no matching phrase template'
+                        'message': 'Two hands detected but no matching phrase template',
+                        'emotion': emotion
                     })
             
             # No hand detected
@@ -249,7 +280,8 @@ def predict_gesture():
                 'detected': False,
                 'text': None,
                 'confidence': 0.0,
-                'type': 'none'
+                'type': 'none',
+                'emotion': emotion
             })
         
     except Exception as e:

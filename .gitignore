@@ -53,4 +53,9 @@ venv/
 # Ignore large model files
 backend/models/*.pkl
 backend/models/backup/
+backend/models/checkpoints/
 *.bak
+*.pt
+*.pth
+
+.cache_asl_videos/

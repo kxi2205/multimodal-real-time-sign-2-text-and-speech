@@ -1,0 +1,13 @@
+{
+  "model_name": "resnet18",
+  "num_classes": 47,
+  "img_size": 224,
+  "best_val_acc": 0.9902507066726685,
+  "best_val_f1": 0.9899594187736511,
+  "training_date": "2025-11-01T08:24:52",
+  "num_parameters": 11200623,
+  "trainable_parameters": 11200623,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "epochs_trained": 10
+}
